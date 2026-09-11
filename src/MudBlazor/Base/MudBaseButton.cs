@@ -1,17 +1,28 @@
-﻿using System.Threading.Tasks;
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor.Interfaces;
 using static System.String;
 
 namespace MudBlazor
 {
-#nullable enable
     /// <summary>
-    /// Represents a base class for designing button components.
+    /// Base class for clickable button components such as <see cref="MudButton"/>, <see cref="MudFab"/>, and <see cref="MudIconButton"/>.
     /// </summary>
     public abstract class MudBaseButton : MudComponentBase
     {
+        /// <summary>
+        /// Stores the rendered element reference without re-rendering this button.
+        /// </summary>
+        /// <remarks>
+        /// Only the button markup in this assembly binds it, so it stays off the public API surface.
+        /// </remarks>
+        private protected readonly EventCallback<ElementReference> _captureElementReference;
+
+        protected MudBaseButton()
+        {
+            _captureElementReference = MudElement.CaptureRef(reference => _elementReference = reference);
+        }
+
         /// <summary>
         /// The custom activation behavior.
         /// </summary>
@@ -133,6 +144,7 @@ namespace MudBlazor
 
         protected override void OnInitialized()
         {
+            base.OnInitialized();
             SetDefaultValues();
         }
 

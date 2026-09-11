@@ -1,20 +1,32 @@
-﻿using Bunit;
-using FluentAssertions;
+﻿using AwesomeAssertions;
+using Bunit;
 using MudBlazor.UnitTests.TestComponents.ButtonGroup;
 using NUnit.Framework;
-using static Bunit.ComponentParameterFactory;
 
 namespace MudBlazor.UnitTests.Components
 {
     [TestFixture]
     public class ButtonGroupTests : BunitTest
     {
+        /// <summary>
+        /// The group renders its own element and still cascades itself to the buttons inside it.
+        /// </summary>
+        [Test]
+        public void ButtonGroup_ShouldRenderItsElementAndCascadeToItsButtons()
+        {
+            var comp = Context.Render<ButtonGroupWithThreeButtons>(
+                parameters => parameters.Add(c => c.ButtonGroupFullWidth, true));
+
+            comp.Find("div.mud-button-group-root").GetAttribute("role").Should().Be("group");
+            comp.FindAll(".mud-button-root.mud-width-full").Count.Should().Be(3);
+        }
+
         [Test]
         public void WithFullWidthAndNoneButtonIsStreched_ThenAllButtonsStreched()
         {
             // Arrange
 
-            var comp = Context.RenderComponent<ButtonGroupWithThreeButtons>(
+            var comp = Context.Render<ButtonGroupWithThreeButtons>(
                 parameters => parameters
                     .Add(c => c.ButtonGroupFullWidth, true)
                     .Add(c => c.Button1FullWidth, false)
@@ -33,7 +45,7 @@ namespace MudBlazor.UnitTests.Components
         {
             // Arrange
 
-            var comp = Context.RenderComponent<ButtonGroupWithThreeButtons>(
+            var comp = Context.Render<ButtonGroupWithThreeButtons>(
                 parameters => parameters
                     .Add(c => c.ButtonGroupFullWidth, true)
                     .Add(c => c.Button1FullWidth, true)
@@ -51,11 +63,11 @@ namespace MudBlazor.UnitTests.Components
         }
 
         [Test]
-        public void WithFullWidth_WhenButtonWithFullWidthIsRemoved_ThenOtherButtonsAreStreched()
+        public async Task WithFullWidth_WhenButtonWithFullWidthIsRemoved_ThenOtherButtonsAreStreched()
         {
             // Arrange
 
-            var comp = Context.RenderComponent<ButtonGroupWithThreeButtons>(
+            var comp = Context.Render<ButtonGroupWithThreeButtons>(
                 parameters => parameters
                     .Add(c => c.ButtonGroupFullWidth, true)
                     .Add(c => c.Button1FullWidth, true)
@@ -65,7 +77,7 @@ namespace MudBlazor.UnitTests.Components
 
             // Act
 
-            comp.SetParam(c => c.Button1Displayed, false);
+            await comp.SetParametersAndRenderAsync(parameters => parameters.Add(c => c.Button1Displayed, false));
 
             // Assert
 

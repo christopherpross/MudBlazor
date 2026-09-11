@@ -8,24 +8,27 @@ using Microsoft.Extensions.Options;
 using MudBlazor.Components.Snackbar;
 using MudBlazor.Components.Snackbar.InternalComponents;
 
-#nullable enable
 
 namespace MudBlazor
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Queues and displays <see cref="Snackbar"/> toast notifications, serving as the default <see cref="ISnackbar"/> implementation rendered by the <see cref="MudSnackbarProvider"/>.
+    /// </summary>
     public class SnackbarService : ISnackbar
     {
         private readonly List<Snackbar> _snackBarList;
         private readonly ReaderWriterLockSlim _snackBarLock;
         private readonly NavigationManager _navigationManager;
+        private readonly TimeProvider _timeProvider;
 
         public SnackbarConfiguration Configuration { get; }
 
         public event Action? OnSnackbarsUpdated;
 
-        public SnackbarService(NavigationManager navigationManager, IOptions<SnackbarConfiguration>? configuration = null)
+        public SnackbarService(NavigationManager navigationManager, TimeProvider timeProvider, IOptions<SnackbarConfiguration>? configuration = null)
         {
             _navigationManager = navigationManager;
+            _timeProvider = timeProvider;
             Configuration = configuration?.Value ?? new SnackbarConfiguration();
             Configuration.OnUpdate += ConfigurationUpdated;
             navigationManager.LocationChanged += NavigationManager_LocationChanged;
@@ -34,6 +37,7 @@ namespace MudBlazor
             _snackBarList = new List<Snackbar>();
         }
 
+        /// <inheritdoc />
         public IEnumerable<Snackbar> ShownSnackbars
         {
             get
@@ -41,7 +45,7 @@ namespace MudBlazor
                 _snackBarLock.EnterReadLock();
                 try
                 {
-                    return _snackBarList.Take(Configuration.MaxDisplayedSnackbars);
+                    return _snackBarList.Take(Configuration.MaxDisplayedSnackbars).ToArray();
                 }
                 finally
                 {
@@ -171,7 +175,7 @@ namespace MudBlazor
             var options = new SnackbarOptions(severity, Configuration);
             configure?.Invoke(options);
 
-            var snackbar = new Snackbar(message, options);
+            var snackbar = new Snackbar(message, options, _timeProvider);
 
             _snackBarLock.EnterWriteLock();
             try
@@ -221,7 +225,6 @@ namespace MudBlazor
                 }
             }
         }
-
 
         private void RemoveAllSnackbars(IEnumerable<Snackbar> snackbars)
         {

@@ -1,13 +1,14 @@
 ﻿@namespace MudBlazor
 @inherits MudBaseButton
 
-<MudElement @bind-Ref="@_elementReference"
+<MudElement Ref="@_elementReference"
+            RefChanged="@_captureElementReference"
             HtmlTag="@HtmlTag"
             Class="@Classname" 
             Style="@Style"
             @attributes="UserAttributes" 
             @onclick="this.AsNonRenderingEventHandler<MouseEventArgs>(OnClickHandler)"
-            type="@ButtonType.ToDescriptionString()" 
+            type="@ButtonType.ToStringFast(true)" 
             href="@Href" 
             target="@Target"
             rel="@GetRel()"

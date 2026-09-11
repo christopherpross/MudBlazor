@@ -8,9 +8,8 @@ using MudBlazor.State.Builder;
 
 namespace MudBlazor;
 
-#nullable enable
 /// <summary>
-/// Represents a base class for designing components which maintain state.
+/// Base class for Blazor components that track parameter changes and manage state through MudBlazor's parameter framework, such as <see cref="MudComponentBase"/>.
 /// </summary>
 public class ComponentBaseWithState : ComponentBase
 {

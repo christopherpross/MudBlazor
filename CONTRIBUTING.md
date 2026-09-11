@@ -1,8 +1,12 @@
-# ![MudBlazor](content/MudBlazor-GitHub-NoBg.png)
+﻿<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="content/MudBlazor-GitHub-NoBg-Dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="content/MudBlazor-GitHub-NoBg.png">
+    <img alt="MudBlazor" src="content/MudBlazor-GitHub-NoBg.png">
+  </picture>
+</h1>
 
 <!-- TOC start (generated with https://github.com/derlin/bitdowntoc) -->
-
-- [](#)
 - [Information and Guidelines for Contributors](#information-and-guidelines-for-contributors)
   - [Code of Conduct](#code-of-conduct)
   - [Minimal Prerequisites to Compile from Source](#minimal-prerequisites-to-compile-from-source)
@@ -14,6 +18,7 @@
     - [Example of a bad Parameter definition](#example-of-a-bad-parameter-definition)
     - [Example of a good Parameter definition](#example-of-a-good-parameter-definition)
     - [Can I share change handlers between parameters?](#can-i-share-change-handlers-between-parameters)
+    - [Does the change handler run for the parameter's initial value?](#does-the-change-handler-run-for-the-parameters-initial-value)
     - [What about the bad parameters all over the MudBlazor code base?](#what-about-the-bad-parameters-all-over-the-mudblazor-code-base)
   - [Avoid overwriting parameters in Blazor Components](#avoid-overwriting-parameters-in-blazor-components)
     - [Example of a bad code](#example-of-a-bad-code)
@@ -22,6 +27,7 @@
     - [Example of a bad code](#example-of-a-bad-code-1)
     - [Example of a good code](#example-of-a-good-code-1)
   - [Unit Testing and Continuous Integration](#unit-testing-and-continuous-integration)
+    - [Test naming conventions](#test-naming-conventions)
     - [How not to break stuff](#how-not-to-break-stuff)
     - [Make your code break-safe](#make-your-code-break-safe)
     - [How to write a unit test?](#how-to-write-a-unit-test)
@@ -29,6 +35,7 @@
     - [What are common errors when writing tests?](#what-are-common-errors-when-writing-tests)
       - [Do not save html elements you query via `Find` or `FindAll` in a variable!](#do-not-save-html-elements-you-query-via-find-or-findall-in-a-variable)
       - [Always use InvokeAsync to set parameter values on a component](#always-use-invokeasync-to-set-parameter-values-on-a-component)
+      - [Keep tests isolated for parallel execution](#keep-tests-isolated-for-parallel-execution)
     - [What does not need to be tested?](#what-does-not-need-to-be-tested)
     - [What is the MudBlazor.UnitTests.Viewer for?](#what-is-the-mudblazorunittestsviewer-for)
     - [What are the auto-generated tests for?](#what-are-the-auto-generated-tests-for)
@@ -46,7 +53,13 @@ Please make sure that you follow our [code of conduct](/CODE_OF_CONDUCT.md)
 
 ## Minimal Prerequisites to Compile from Source
 
--   [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+-   [.NET SDK](https://dotnet.microsoft.com/download/dotnet) (see `global.json` for the pinned feature band; any patch of that band works — it can build the older targets too)
+
+The `MudBlazor` library multi-targets net8.0, net9.0, and net10.0. `dotnet test` and IDE builds only compile the framework that is needed (the tests build just net10.0), but a direct `dotnet build src/MudBlazor` compiles all three. For a faster single-framework build while developing, pass `-f`:
+
+```bash
+dotnet build src/MudBlazor -f net10.0
+```
 
 ## Pull Requests
 - Your Pull Request (PR) must only consist of one topic. It is better to split Pull Requests with more than one feature or bug fix in separate Pull Requests
@@ -223,6 +236,44 @@ Yes, if you pass them as a method group like in the example below, shared parame
 
 **NB**: if you pass lambda functions as change handlers they will be called once each for every changed parameter even if they contain the same code!
 
+### Does the change handler run for the parameter's initial value?
+
+No. A change handler only fires for values that arrive through the `ParameterView`, i.e. values written in
+razor markup by the consumer. It does **not** fire for a value that the component already carries, such as:
+
+```c#
+// property initializer
+[Parameter] public double DebounceInterval { get; set; } = 1000;
+```
+
+```razor
+@* a derived component assigning the inherited parameter in its constructor *@
+@inherits MudTextField<T>
+
+@code {
+    public MyTextField()
+    {
+        DebounceInterval = 1000;
+    }
+}
+```
+
+In both cases the parameter is absent from the `ParameterView` (or, if the consumer happens to pass the same
+value, it is present but unchanged), so no change is detected and the handler is skipped.
+
+This only matters when the handler has a side effect that must also apply to the initial value, for example
+creating a timer or a dispatcher. Seed that state from `OnInitialized` in addition to the change handler:
+
+```c#
+protected override void OnInitialized()
+{
+    base.OnInitialized();
+    _debouncer ??= CreateDebouncer(DebounceInterval);
+}
+```
+
+See `MudDebouncedInput<T>` and `MudColorPicker` for the pattern in practice.
+
 ### What about the bad parameters all over the MudBlazor code base?
 
 We are slowly but surely refactoring all of those, you can help if you like.
@@ -335,6 +386,12 @@ We strive for complete test coverage to keep stuff from breaking and
 deliver a rock-solid library. For every component that has C# logic we 
 require a bUnit test that checks its logic.
 
+### Test naming conventions
+
+- Do not use `Test` or `Async` suffixes in test method names (e.g., `Toggle_OpenAsync` -> `Toggle_Open`)
+- Do not embed `Test_` in the middle of names (e.g., `AlertTest_Click` -> `Alert_Click`)
+- No trailing underscores or double underscores in test method names (e.g., `BarChart_CanHideSeries_` -> `BarChart_CanHideSeries`)
+
 ### How not to break stuff
 
 When you are making changes to any components and preparing a PR make sure you run the entire test suite to see if anything broke.
@@ -380,8 +437,8 @@ In the Test make sure to instantiate the razor file you just prepared above.
    
    // wrong - this will fail:
    var textField = comp.Find("input");
-   textField.Change("Garfield");
-   textField.Blur();
+   await textField.ChangeAsync("Garfield");
+   await textField.BlurAsync();
    comp.FindComponent<MudTextField<string>>().Instance.Value.NotBeNullOrEmpty();
 ```
 
@@ -391,8 +448,8 @@ As soon as you interact with html elements they are potentially re-rendered, and
    var comp = ctx.RenderComponent<MudTextField<string>>();
    
    // correct   
-   comp.Find("input").Change("Garfield");
-   comp.Find("input").Blur();
+   await comp.Find("input").ChangeAsync("Garfield");
+   await comp.Find("input").BlurAsync();
    comp.FindComponent<MudTextField<string>>().Instance.Value.NotBeNullOrEmpty();
 ```
 
@@ -411,6 +468,10 @@ The bUnit test logic is not running on the Blazor UI-thread, so whenever directl
    // correct
    await comp.InvokeAsync(()=>textField.Value="I love dogs");
 ```
+
+#### Keep tests isolated for parallel execution
+
+Avoid modifying shared/static state (such as `MudGlobal` defaults or singletons) without restoring it in `[TearDown]`. If a fixture must change global state, mark it `[NonParallelizable]` and prefer deterministic timing helpers like `TimeProvider`/`FakeTimeProvider` over `Task.Delay`.
 
 ### What does not need to be tested?
 

@@ -4,13 +4,19 @@ using MudBlazor.Utilities;
 
 namespace MudBlazor
 {
-#nullable enable
     /// <summary>
     /// A choice displayed as part of a list within a <see cref="MudMenu"/> component.
     /// </summary>
     /// <seealso cref="MudMenu" />
     public partial class MudMenuItem : MudComponentBase
     {
+        private readonly EventCallback<ElementReference> _captureElementReference;
+
+        public MudMenuItem()
+        {
+            _captureElementReference = MudElement.CaptureRef(reference => ElementReference = reference);
+        }
+
         [Inject]
         protected NavigationManager UriHelper { get; set; } = null!;
 
@@ -116,42 +122,63 @@ namespace MudBlazor
         [Parameter]
         public EventCallback<MouseEventArgs> OnClick { get; set; }
 
+        /// <summary>
+        /// Hides the submenu arrow if the item is being populated from the activator content. 
+        /// </summary>
+        [Parameter]
+        [Category(CategoryTypes.Menu.Behavior)]
+        public bool HideSubMenuArrow { get; set; }
+
+        public ElementReference ElementReference { get; private set; }
+
         protected string GetHtmlTag() => string.IsNullOrEmpty(Href) ? "div" : "a";
 
-        protected bool GetDisabled() => Disabled || ParentMenu?.Disabled == true;
+        protected internal bool GetDisabled() => Disabled || ParentMenu?.Disabled == true;
 
         protected bool GetDense() => ParentMenu?.GetDense() == true;
 
         protected Typo GetTypo() => GetDense() ? Typo.body2 : Typo.body1;
 
         /// <summary>
+        /// Enables right-to-left layout.
+        /// </summary>
+        [CascadingParameter(Name = "RightToLeft")]
+        public bool RightToLeft { get; set; }
+
+        /// <summary>
         /// The menu item is acting as the activator for a sub menu.
         /// </summary>
         protected bool ActivatesSubMenu => Class?.Contains("mud-menu-sub-menu-activator") == true;
 
-        protected async Task OnClickHandlerAsync(MouseEventArgs ev)
+        protected internal async Task OnClickHandlerAsync(MouseEventArgs ev)
         {
             if (GetDisabled())
             {
                 return;
             }
 
-            if (AutoClose && ParentMenu is not null)
+            // Invoke the user's handler first, before navigating or closing the menu.
+            if (OnClick.HasDelegate)
             {
-                await ParentMenu.CloseAllMenusAsync();
+                await OnClick.InvokeAsync(ev);
             }
 
-            // Manual navigation is only required when the target is empty and a
-            // forced reload is necessary; all other scenarios are managed by the HTML anchor.
+            // Manual navigation is only required when the target is empty and a forced reload is necessary; all other scenarios are managed by the HTML anchor.
             if (ForceLoad && !string.IsNullOrEmpty(Href) && string.IsNullOrEmpty(Target))
             {
                 UriHelper.NavigateTo(Href, forceLoad: ForceLoad);
             }
 
-            if (OnClick.HasDelegate)
+            if (AutoClose && ParentMenu is not null)
             {
-                await OnClick.InvokeAsync(ev);
+                await ParentMenu.CloseAllMenusAsync();
             }
+        }
+
+        protected override void OnInitialized()
+        {
+            base.OnInitialized();
+            ParentMenu?.RegisterItem(this);
         }
     }
 }
